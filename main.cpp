@@ -10,6 +10,14 @@ std::time_t getCurrentTime() {
     return std::time(0);
 }
 
+void printTryResult(int currentTry) {
+    std::cout << "Try " << currentTry << ", final balance: " << currentBalance << std::endl;
+}
+
+void printTestResult(std::string testType, std::time_t timeStart, std::time_t timeEnd) {
+    std::cout << testType << ", time elapsed: " << (timeEnd - timeStart) << "s" << std::endl;
+}
+
 void addToBalance(double amount) {
     currentBalance += amount;
 }
@@ -32,11 +40,10 @@ void sequentialTest(double amountToModify, int numOfBalanceActions, int numOfThr
             changeBalance(numOfBalanceActions, amountToModify);
         }
 
-        std::cout << "Try " << (currentTry +1) << ", final balance: " << currentBalance << std::endl;
+        printTryResult(currentTry +1);
         currentBalance = 0;
     }
-    std::time_t timeEnd = getCurrentTime();
-    std::cout << "Sequential Test, time elapsed: " << (timeEnd - timeStart) << "s" << std::endl;
+    printTestResult("Sequential Test", timeStart, getCurrentTime());
 }
 
 void parallelUnsafeTest(double amountToModify, int numOfBalanceActions, int numOfThreads, int numOfTries) {
@@ -52,18 +59,19 @@ void parallelUnsafeTest(double amountToModify, int numOfBalanceActions, int numO
             t.join();
         }
 
-        std::cout << "Try " << (currentTry +1) << ", final balance: " << currentBalance << std::endl;
+        printTryResult(currentTry +1);
         currentBalance = 0;
     }
-    std::time_t timeEnd = getCurrentTime();
-    std::cout << "Unsafe Test, time elapsed: " << (timeEnd - timeStart) << "s" << std::endl;
+
+    printTestResult("Unsafe Test", timeStart, getCurrentTime());
 }
 
-void parallelSafeTest() { 
+void parallelSafeTest(double amountToModify, int numOfBalanceActions, int numOfThreads, int numOfTries) { 
     // tbi
 }
 
 int main() {
+    std::string input;
 
     std::cout << "Enter the balance's initial value (Default: 0): ";
     std::getline(std::cin, input);
@@ -85,8 +93,13 @@ int main() {
     std::getline(std::cin, input);
     int numOfTries = input != "" ? std::stoi(input) : 10;
 
-    // parallelUnsafeTest(amountToModify, numOfBalanceActions, numOfThreads, numOfTries);
-    sequentialTest(amountToModify, numOfBalanceActions, numOfThreads, numOfTries);
+    std::cout << "Enter the num of the test you'd like to run. Sequential(1), Parallel Unsafe(2), Parallel Safe(3): ";
+    std::getline(std::cin, input);
+    int testType = input != "" ? std::stoi(input) : 1;
+
+    if (testType == 1) sequentialTest(amountToModify, numOfBalanceActions, numOfThreads, numOfTries);
+    if (testType == 2) parallelUnsafeTest(amountToModify, numOfBalanceActions, numOfThreads, numOfTries);
+    if (testType == 3) parallelSafeTest(amountToModify, numOfBalanceActions, numOfThreads, numOfTries);
     
     return 0;
 }
