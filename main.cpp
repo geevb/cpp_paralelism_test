@@ -1,58 +1,75 @@
 #include <iostream>
 #include <thread>
+#include <mutex>
 #include <string>
 #include <vector>
-#include<ctime>
+#include <ctime>
+#include <chrono>
 
+std::mutex mtx;
 double currentBalance;
+void addToBalance(double amount, bool safeMode) {
+    if (safeMode) mtx.lock();
+    currentBalance += amount;
+    if (safeMode) mtx.unlock();
 
-std::time_t getCurrentTime() {
-    return std::time(0);
+    // Simulate other processes needed for the transaction to happen...
+    std::this_thread::sleep_for(std::chrono::milliseconds(1)); 
+}
+
+void removeFromBalance(double amount, bool safeMode) {
+    if (safeMode) mtx.lock();
+    currentBalance -= amount;
+    if (safeMode) mtx.unlock();
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+}
+
+std::chrono::_V2::system_clock::time_point getCurrentTime() {
+    return std::chrono::high_resolution_clock::now();
 }
 
 void printTryResult(int currentTry) {
     std::cout << "Try " << currentTry << ", final balance: " << currentBalance << std::endl;
 }
 
-void printTestResult(std::string testType, std::time_t timeStart, std::time_t timeEnd) {
-    std::cout << testType << ", time elapsed: " << (timeEnd - timeStart) << "s" << std::endl;
+void printTestResult(
+    std::string testType, 
+    std::chrono::_V2::system_clock::time_point timeStart, 
+    std::chrono::_V2::system_clock::time_point timeEnd
+) { 
+    std::chrono::duration<double> diff = timeEnd - timeStart;
+    std::cout << testType << ", time elapsed: " << diff.count() << "s" << std::endl;
 }
 
-void addToBalance(double amount) {
-    currentBalance += amount;
-}
-
-void removeFromBalance(double amount) {
-    currentBalance -= amount;
-}
-
-void changeBalance(int numOfBalanceActions, double amountToModify) {
+void changeBalance(int numOfBalanceActions, double amountToModify, bool safeMode) {
     for (int i = 0; i < numOfBalanceActions; i++) {
-        addToBalance(amountToModify);
-        removeFromBalance(amountToModify);
+        addToBalance(amountToModify, safeMode);
+        removeFromBalance(amountToModify, safeMode);
     }
 }
 
 void sequentialTest(double amountToModify, int numOfBalanceActions, int numOfThreads, int numOfTries) {
-    std::time_t timeStart = getCurrentTime();
+    auto timeStart = getCurrentTime();
     for (int currentTry = 0; currentTry < numOfTries; currentTry++) {
         for (int i = 0; i < numOfThreads; ++i) {
-            changeBalance(numOfBalanceActions, amountToModify);
+            changeBalance(numOfBalanceActions, amountToModify, false);
         }
 
         printTryResult(currentTry +1);
         currentBalance = 0;
     }
+
     printTestResult("Sequential Test", timeStart, getCurrentTime());
 }
 
-void parallelUnsafeTest(double amountToModify, int numOfBalanceActions, int numOfThreads, int numOfTries) {
-    std::time_t timeStart = getCurrentTime();
+void parallelTest(double amountToModify, int numOfBalanceActions, int numOfThreads, int numOfTries, bool safeMode) {
+    auto timeStart = getCurrentTime();
     for (int currentTry = 0; currentTry < numOfTries; currentTry++) {
         
         std::vector<std::thread> threads;
         for (int i = 0; i < numOfThreads; ++i) {
-            threads.emplace_back(changeBalance, numOfBalanceActions, amountToModify);
+            threads.emplace_back(changeBalance, numOfBalanceActions, amountToModify, safeMode);
         }
 
         for (auto& t : threads) {
@@ -63,11 +80,8 @@ void parallelUnsafeTest(double amountToModify, int numOfBalanceActions, int numO
         currentBalance = 0;
     }
 
-    printTestResult("Unsafe Test", timeStart, getCurrentTime());
-}
-
-void parallelSafeTest(double amountToModify, int numOfBalanceActions, int numOfThreads, int numOfTries) { 
-    // tbi
+    std::string testType = std::string(safeMode ? "Safe" : "Unsafe") + " Test";
+    printTestResult(testType, timeStart, getCurrentTime());
 }
 
 int main() {
@@ -98,8 +112,8 @@ int main() {
     int testType = input != "" ? std::stoi(input) : 1;
 
     if (testType == 1) sequentialTest(amountToModify, numOfBalanceActions, numOfThreads, numOfTries);
-    if (testType == 2) parallelUnsafeTest(amountToModify, numOfBalanceActions, numOfThreads, numOfTries);
-    if (testType == 3) parallelSafeTest(amountToModify, numOfBalanceActions, numOfThreads, numOfTries);
+    if (testType == 2) parallelTest(amountToModify, numOfBalanceActions, numOfThreads, numOfTries, false);
+    if (testType == 3) parallelTest(amountToModify, numOfBalanceActions, numOfThreads, numOfTries, true);
     
     return 0;
 }
